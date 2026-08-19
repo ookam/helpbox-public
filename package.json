@@ -1,0 +1,75 @@
+{
+  "name": "@ookam/helpbox",
+  "version": "0.1.2",
+  "description": "Markdownから日本語の静的ヘルプセンターを生成するAstro Integration",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ookam/helpbox-public.git"
+  },
+  "homepage": "https://github.com/ookam/helpbox-public#readme",
+  "bugs": {
+    "url": "https://github.com/ookam/helpbox-public/issues"
+  },
+  "keywords": [
+    "astro",
+    "help-center",
+    "documentation",
+    "pagefind",
+    "cloudflare"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs"
+    },
+    "./content": {
+      "types": "./src/content.d.ts",
+      "import": "./src/content.mjs"
+    },
+    "./styles.css": "./src/styles/global.css",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "helpbox": "bin/helpbox.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "template"
+  ],
+  "scripts": {
+    "check:node": "node --check src/index.mjs && node --check src/content.mjs && node --check bin/helpbox.mjs && node --check scripts/npm-command.mjs && node --check scripts/audit-package.mjs && node --check scripts/test-config.mjs && node --check scripts/test-cli.mjs && node --check scripts/test-packed-install.mjs",
+    "check": "npm run check:node && npm run check --workspace helpbox-example",
+    "build": "npm run build --workspace helpbox-example",
+    "test:config": "node scripts/test-config.mjs",
+    "test:cli": "node scripts/test-cli.mjs",
+    "test:packed": "node scripts/test-packed-install.mjs",
+    "audit:package": "node scripts/audit-package.mjs",
+    "pack:dry": "npm pack --dry-run",
+    "test": "npm run check && npm run test:config && npm run build && node scripts/validate-build.mjs && npm run test:cli && npm run audit:package && npm run test:packed",
+    "prepublishOnly": "npm test"
+  },
+  "dependencies": {
+    "pagefind": "^1.5.2"
+  },
+  "peerDependencies": {
+    "astro": "^7.2.2"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "astro": "^7.2.2",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.123.0"
+  },
+  "workspaces": [
+    "examples/basic"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

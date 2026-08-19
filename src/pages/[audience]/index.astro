@@ -1,0 +1,22 @@
+---
+import AudienceHome from '../../components/AudienceHome.astro';
+import { siteConfig, type HelpAudience } from '../../config/site';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export function getStaticPaths() {
+  return siteConfig.audiences.map((audience) => ({
+    params: { audience: audience.id },
+    props: { audience },
+  }));
+}
+
+interface Props {
+  audience: HelpAudience;
+}
+
+const { audience } = Astro.props;
+---
+
+<BaseLayout title={audience.label} description={audience.description} audienceId={audience.id}>
+  <AudienceHome audienceId={audience.id} />
+</BaseLayout>

@@ -1,0 +1,138 @@
+---
+import { getAudience, siteConfig } from '../config/site';
+import { formatDate, getAudienceDocs, getDocPath, getTagPath } from '../lib/content';
+import ArticleCard from './ArticleCard.astro';
+import SearchForm from './SearchForm.astro';
+
+interface Props {
+  audienceId: string;
+}
+
+const { audienceId } = Astro.props;
+const audience = getAudience(audienceId);
+if (!audience) throw new Error(`Unknown audience: ${audienceId}`);
+
+const docs = await getAudienceDocs(audience.id);
+const featured = docs.filter(({ data }) => data.featured && data.kind === 'guide').slice(0, 6);
+const notices = docs
+  .filter(({ data }) => data.kind === 'notice')
+  .sort((a, b) => (b.data.publishedAt?.getTime() ?? 0) - (a.data.publishedAt?.getTime() ?? 0))
+  .slice(0, 5);
+const tagCounts = docs
+  .flatMap(({ data }) => data.tags)
+  .reduce((counts, tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1), new Map<string, number>());
+const tags = [...tagCounts.entries()]
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja'))
+  .slice(0, 10);
+---
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-copy">
+      <p class="eyebrow">{siteConfig.serviceName} Support</p>
+      <h1>{audience.label}</h1>
+      <p class="hero-description">{audience.description}</p>
+      <SearchForm audienceId={audience.id} />
+    </div>
+  </div>
+</section>
+
+{
+  featured.length > 0 && (
+    <section class="section">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <h2>まず読む記事</h2>
+            <p>利用を始めるときに役立つ記事をご案内します。</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          {featured.map((doc) => <ArticleCard doc={doc} />)}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+{
+  tags.length > 0 && (
+    <section class="section">
+      <div class="container">
+        <div class="section-heading">
+          <div><h2>キーワードから探す</h2></div>
+        </div>
+        <ul class="tag-list">
+          {tags.map(([tag, count]) => (
+            <li><a href={getTagPath(audience.id, tag)}>{tag} <span aria-label={`${count}件`}>({count})</span></a></li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+<section class="section">
+  <div class="container">
+    <div class="section-heading">
+      <div><h2>カテゴリーから探す</h2></div>
+    </div>
+    <div class="category-grid">
+      {
+        audience.categories.map((category) => {
+          const count = docs.filter(({ data }) => data.category === category.id).length;
+          return (
+            <a class="category-card" href={`/${audience.id}/category/${category.id}/`}>
+              <strong>{category.label}</strong>
+              <p>{category.description}</p>
+              <span class="category-count">{count}件 →</span>
+            </a>
+          );
+        })
+      }
+    </div>
+  </div>
+</section>
+
+{
+  notices.length > 0 && (
+    <section class="section">
+      <div class="container">
+        <div class="section-heading">
+          <div><h2>お知らせ</h2></div>
+          <a class="text-link" href={`/${audience.id}/notices/`}>一覧を見る →</a>
+        </div>
+        <ul class="notice-list">
+          {notices.map((doc) => (
+            <li>
+              <a href={getDocPath(doc)}>
+                <time datetime={doc.data.publishedAt?.toISOString()}>
+                  {formatDate(doc.data.publishedAt ?? doc.data.updatedAt)}
+                </time>
+                <strong>{doc.data.title}</strong>
+                <span aria-hidden="true">→</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+{
+  siteConfig.contact && (
+    <section class="section">
+      <div class="container">
+        <div class="contact-card">
+          <div>
+            <h2>解決しませんでしたか？</h2>
+            <p>{siteConfig.contact.description}</p>
+            {siteConfig.contact.hours && <p>{siteConfig.contact.hours}</p>}
+          </div>
+          <a class="button" href={siteConfig.contact.url}>{siteConfig.contact.label} <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+  )
+}

@@ -1,0 +1,106 @@
+---
+import { render } from 'astro:content';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { getAudience, getCategory, type HelpAudience, type HelpCategory } from '../../../config/site';
+import {
+  formatDate,
+  getAudienceDocs,
+  getDocPath,
+  getDocSlug,
+  getPublishedDocs,
+  getTagPath,
+  validateContentReferences,
+  type HelpDoc,
+} from '../../../lib/content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const docs = await getPublishedDocs();
+  validateContentReferences(docs);
+
+  return docs.map((doc) => ({
+    params: { audience: doc.data.audience, slug: getDocSlug(doc) },
+    props: { doc },
+  }));
+}
+
+interface Props {
+  doc: HelpDoc;
+}
+
+const { doc } = Astro.props as Props;
+const audience = getAudience(doc.data.audience) as HelpAudience;
+const category = getCategory(doc.data.audience, doc.data.category) as HelpCategory;
+const { Content, headings } = await render(doc);
+const related = (await getAudienceDocs(audience.id))
+  .filter((candidate) => candidate.id !== doc.id && candidate.data.category === doc.data.category)
+  .slice(0, 4);
+---
+
+<BaseLayout
+  title={doc.data.title}
+  description={doc.data.summary}
+  audienceId={audience.id}
+  searchMeta={{ audience: audience.id, category: category.id, tags: doc.data.tags }}
+>
+  <div class="container article-shell">
+    <article class="article-panel" data-pagefind-body>
+      <Breadcrumbs items={[
+        { label: 'ホーム', href: '/' },
+        { label: audience.shortLabel, href: `/${audience.id}/` },
+        { label: category.label, href: `/${audience.id}/category/${category.id}/` },
+        { label: doc.data.title },
+      ]} />
+      <header class="article-header">
+        <h1 data-pagefind-meta="title">{doc.data.title}</h1>
+        <p class="article-summary">{doc.data.summary}</p>
+        <div class="article-details">
+          <span>カテゴリー: {category.label}</span>
+          <time datetime={doc.data.updatedAt.toISOString()}>更新日: {formatDate(doc.data.updatedAt)}</time>
+        </div>
+        {
+          doc.data.tags.length > 0 && (
+            <ul class="tag-list" data-pagefind-ignore>
+              {doc.data.tags.map((tag) => (
+                <li><a href={getTagPath(audience.id, tag)}>{tag}</a></li>
+              ))}
+            </ul>
+          )
+        }
+      </header>
+      <div class="prose">
+        <Content />
+      </div>
+    </article>
+
+    <aside class="article-side" aria-label="記事ナビゲーション" data-pagefind-ignore>
+      {
+        headings.length >= 2 && (
+          <nav class="side-card" aria-label="目次">
+            <h2>目次</h2>
+            <ul>
+              {headings.filter(({ depth }) => depth <= 3).map((heading) => (
+                <li><a href={`#${heading.slug}`}>{heading.text}</a></li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+      {
+        related.length > 0 && (
+          <div class="side-card">
+            <h2>関連記事</h2>
+            <ul>
+              {related.map((candidate) => (
+                <li><a href={getDocPath(candidate)}>{candidate.data.title}</a></li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+      <div class="side-card">
+        <a class="text-link" href={`/${audience.id}/category/${category.id}/`}>カテゴリーの記事一覧 →</a>
+      </div>
+    </aside>
+  </div>
+</BaseLayout>

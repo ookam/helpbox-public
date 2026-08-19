@@ -1,0 +1,59 @@
+---
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { siteConfig, type HelpAudience } from '../../config/site';
+import { formatDate, getAudienceDocs, getDocPath } from '../../lib/content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export function getStaticPaths() {
+  return siteConfig.audiences.map((audience) => ({
+    params: { audience: audience.id },
+    props: { audience },
+  }));
+}
+
+interface Props {
+  audience: HelpAudience;
+}
+
+const { audience } = Astro.props;
+const notices = (await getAudienceDocs(audience.id))
+  .filter(({ data }) => data.kind === 'notice')
+  .sort((a, b) => (b.data.publishedAt?.getTime() ?? 0) - (a.data.publishedAt?.getTime() ?? 0));
+---
+
+<BaseLayout title="お知らせ" description={`${audience.label}へのお知らせです。`} audienceId={audience.id}>
+  <header class="page-heading">
+    <div class="container">
+      <Breadcrumbs items={[
+        { label: 'ホーム', href: '/' },
+        { label: audience.shortLabel, href: `/${audience.id}/` },
+        { label: 'お知らせ' },
+      ]} />
+      <h1>お知らせ</h1>
+      <p>{audience.label}への最新情報をご案内します。</p>
+    </div>
+  </header>
+  <section class="section">
+    <div class="container">
+      {
+        notices.length > 0 ? (
+          <ul class="notice-list">
+            {notices.map((doc) => (
+              <li>
+                <a href={getDocPath(doc)}>
+                  <time datetime={doc.data.publishedAt?.toISOString()}>
+                    {formatDate(doc.data.publishedAt ?? doc.data.updatedAt)}
+                  </time>
+                  <strong>{doc.data.title}</strong>
+                  <span aria-hidden="true">→</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="empty-state">現在お知らせはありません。</p>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

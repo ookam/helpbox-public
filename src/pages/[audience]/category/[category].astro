@@ -1,0 +1,58 @@
+---
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { siteConfig, type HelpAudience, type HelpCategory } from '../../../config/site';
+import { getAudienceDocs, getDocPath } from '../../../lib/content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+export function getStaticPaths() {
+  return siteConfig.audiences.flatMap((audience) =>
+    audience.categories.map((category) => ({
+      params: { audience: audience.id, category: category.id },
+      props: { audience, category },
+    })),
+  );
+}
+
+interface Props {
+  audience: HelpAudience;
+  category: HelpCategory;
+}
+
+const { audience, category } = Astro.props;
+const docs = (await getAudienceDocs(audience.id)).filter(({ data }) => data.category === category.id);
+---
+
+<BaseLayout title={category.label} description={category.description} audienceId={audience.id}>
+  <header class="page-heading">
+    <div class="container">
+      <Breadcrumbs items={[
+        { label: 'ホーム', href: '/' },
+        { label: audience.shortLabel, href: `/${audience.id}/` },
+        { label: category.label },
+      ]} />
+      <h1>{category.label}</h1>
+      <p>{category.description}</p>
+    </div>
+  </header>
+  <section class="section">
+    <div class="container">
+      {
+        docs.length > 0 ? (
+          <ul class="article-list">
+            {docs.map((doc) => (
+              <li>
+                <a href={getDocPath(doc)}>
+                  <span class="list-meta">{doc.data.kind === 'notice' ? 'お知らせ' : category.label}</span>
+                  <strong>{doc.data.title}</strong>
+                  <span aria-hidden="true">→</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="empty-state">このカテゴリーの記事はまだありません。</p>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

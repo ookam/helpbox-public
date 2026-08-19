@@ -1,0 +1,32 @@
+---
+import { siteConfig } from '../config/site';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title={siteConfig.name} description={siteConfig.description}>
+  <section class="hero">
+    <div class="container">
+      <div class="hero-copy">
+        <p class="eyebrow">{siteConfig.serviceName} Support</p>
+        <h1>お困りのことはありますか？</h1>
+        <p class="hero-description">{siteConfig.description}<br />当てはまるご利用方法を選んでください。</p>
+      </div>
+    </div>
+  </section>
+  <section class="section">
+    <div class="container">
+      <div class="card-grid audience-grid">
+        {
+          siteConfig.audiences.map((audience) => (
+            <a class="audience-card" href={`/${audience.id}/`}>
+              <span class="card-kicker">HELP FOR</span>
+              <h2>{audience.label}</h2>
+              <p>{audience.description}</p>
+              <span class="arrow" aria-hidden="true">ヘルプを見る →</span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>

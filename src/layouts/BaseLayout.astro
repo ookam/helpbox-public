@@ -1,0 +1,152 @@
+---
+import { siteConfig } from '../config/site';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  audienceId?: string;
+  noindex?: boolean;
+  searchMeta?: {
+    audience: string;
+    category: string;
+    tags: string[];
+  };
+}
+
+const {
+  title,
+  description = siteConfig.description,
+  audienceId,
+  noindex = false,
+  searchMeta,
+} = Astro.props;
+const pageTitle = title === siteConfig.name ? title : `${title} | ${siteConfig.name}`;
+const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
+const currentYear = new Date().getFullYear();
+const themeVariables = {
+  primary: '--color-primary',
+  primaryDark: '--color-primary-dark',
+  primarySoft: '--color-primary-soft',
+  accent: '--color-accent',
+  ink: '--color-ink',
+} as const;
+const themeStyle = Object.entries(siteConfig.theme)
+  .map(([name, value]) => `${themeVariables[name as keyof typeof themeVariables]}:${value}`)
+  .join(';');
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} data-pagefind-meta={searchMeta ? 'description[content]' : undefined} />
+    {searchMeta && <meta name="help:audience" content={searchMeta.audience} data-pagefind-filter="audience[content]" />}
+    {searchMeta && <meta name="help:category" content={searchMeta.category} data-pagefind-filter="category[content]" data-pagefind-meta="category[content]" />}
+    {searchMeta?.tags.map((tag) => <meta name="help:tag" content={tag} data-pagefind-filter="tag[content]" />)}
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <link rel="icon" href={siteConfig.favicon} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+    <meta name="twitter:card" content="summary" />
+    <title>{pageTitle}</title>
+  </head>
+  <body style={themeStyle || undefined}>
+    <a class="skip-link" href="#main-content">本文へ移動</a>
+    <header class="site-header" data-pagefind-ignore>
+      <div class="container header-inner">
+        <a class="brand" href="/" aria-label={`${siteConfig.name} ホーム`}>
+          {siteConfig.brandMark && <img class="brand-mark" src={siteConfig.brandMark} alt="" width="34" height="34" />}
+          <span>{siteConfig.name}</span>
+        </a>
+        <nav class="audience-nav" aria-label="ヘルプの対象を選択">
+          {
+            siteConfig.audiences.map((audience) => (
+              <a
+                href={`/${audience.id}/`}
+                aria-current={audience.id === audienceId ? 'page' : undefined}
+              >
+                {audience.shortLabel}
+              </a>
+            ))
+          }
+        </nav>
+        <a class="service-link" href={siteConfig.serviceUrl}>
+          {siteConfig.serviceName}へ戻る <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </header>
+    <main id="main-content">
+      <slot />
+    </main>
+    <footer class="site-footer" data-pagefind-ignore>
+      <div class="container footer-inner">
+        <nav class="footer-directory" aria-label="ヘルプカテゴリー">
+          <h2 class="footer-heading">ヘルプを探す</h2>
+          <div class="footer-audience-grid">
+            {
+              siteConfig.audiences.map((audience) => (
+                <section class="footer-audience">
+                  <h3>
+                    <a href={`/${audience.id}/`}>{audience.shortLabel}</a>
+                  </h3>
+                  <ul class="footer-category-links">
+                    {
+                      audience.categories.map((category) => (
+                        <li>
+                          <a href={`/${audience.id}/category/${category.id}/`}>{category.label}</a>
+                        </li>
+                      ))
+                    }
+                  </ul>
+                </section>
+              ))
+            }
+          </div>
+        </nav>
+
+        {
+          siteConfig.contact && (
+            <section class="footer-contact" aria-labelledby="footer-contact-heading">
+              <h2 class="footer-heading" id="footer-contact-heading">お問い合わせ</h2>
+              <div class="footer-contact-row">
+                <div class="footer-contact-copy">
+                  <p>{siteConfig.contact.description}</p>
+                  {siteConfig.contact.hours && <p>{siteConfig.contact.hours}</p>}
+                </div>
+                <a class="footer-contact-link" href={siteConfig.contact.url}>
+                  {siteConfig.contact.label} <span aria-hidden="true">↗</span>
+                </a>
+              </div>
+            </section>
+          )
+        }
+
+        {
+          siteConfig.footerLinks.length > 0 && (
+            <nav class="footer-services" aria-label={`${siteConfig.serviceName}の関連リンク`}>
+              <h2 class="footer-heading">関連リンク</h2>
+              <ul class="footer-links">
+                {
+                  siteConfig.footerLinks.map((link) => (
+                    <li><a href={link.url}>{link.label}</a></li>
+                  ))
+                }
+              </ul>
+            </nav>
+          )
+        }
+
+        <div class="footer-bottom">
+          <a class="footer-brand" href="/">{siteConfig.name}</a>
+          <p class="footer-note">© {currentYear} {siteConfig.serviceName}</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,61 @@
+---
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { getAudience, getCategory, type HelpAudience } from '../../../config/site';
+import { getAudienceDocs, getDocPath, getPublishedDocs } from '../../../lib/content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const docs = await getPublishedDocs();
+  const keys = new Map<string, { audience: HelpAudience; tag: string }>();
+
+  for (const doc of docs) {
+    const audience = getAudience(doc.data.audience);
+    if (!audience) continue;
+    for (const tag of doc.data.tags) keys.set(`${audience.id}:${tag}`, { audience, tag });
+  }
+
+  return [...keys.values()].map(({ audience, tag }) => ({
+    params: { audience: audience.id, tag },
+    props: { audience, tag },
+  }));
+}
+
+interface Props {
+  audience: HelpAudience;
+  tag: string;
+}
+
+const { audience, tag } = Astro.props;
+const docs = (await getAudienceDocs(audience.id)).filter(({ data }) => data.tags.includes(tag));
+---
+
+<BaseLayout title={tag} description={`${tag}に関するヘルプ記事です。`} audienceId={audience.id}>
+  <header class="page-heading">
+    <div class="container">
+      <Breadcrumbs items={[
+        { label: 'ホーム', href: '/' },
+        { label: audience.shortLabel, href: `/${audience.id}/` },
+        { label: tag },
+      ]} />
+      <h1>「{tag}」の記事</h1>
+      <p>{docs.length}件の記事があります。</p>
+    </div>
+  </header>
+  <section class="section">
+    <div class="container">
+      <ul class="article-list">
+        {
+          docs.map((doc) => (
+            <li>
+              <a href={getDocPath(doc)}>
+                <span class="list-meta">{getCategory(audience.id, doc.data.category)?.label}</span>
+                <strong>{doc.data.title}</strong>
+                <span aria-hidden="true">→</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+</BaseLayout>

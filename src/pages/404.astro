@@ -1,0 +1,17 @@
+---
+import { siteConfig } from '../config/site';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="ページが見つかりません" noindex>
+  <section class="hero">
+    <div class="container">
+      <div class="hero-copy">
+        <p class="eyebrow">404 Not Found</p>
+        <h1>ページが見つかりません</h1>
+        <p class="hero-description">URLが変更されたか、ページが削除された可能性があります。</p>
+        <p><a class="button" href={`/${siteConfig.defaultAudience}/`}>ヘルプトップへ戻る</a></p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

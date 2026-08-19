@@ -1,0 +1,168 @@
+---
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import SearchForm from '../../components/SearchForm.astro';
+import { siteConfig, type HelpAudience } from '../../config/site';
+import { getAudienceDocs } from '../../lib/content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export function getStaticPaths() {
+  return siteConfig.audiences.map((audience) => ({
+    params: { audience: audience.id },
+    props: { audience },
+  }));
+}
+
+interface Props {
+  audience: HelpAudience;
+}
+
+const { audience } = Astro.props;
+const hasDocs = (await getAudienceDocs(audience.id)).length > 0;
+---
+
+<BaseLayout
+  title="記事検索"
+  description={`${audience.label}の記事を検索できます。`}
+  audienceId={audience.id}
+  noindex
+>
+  <header class="page-heading">
+    <div class="container">
+      <Breadcrumbs items={[
+        { label: 'ホーム', href: '/' },
+        { label: audience.shortLabel, href: `/${audience.id}/` },
+        { label: '記事検索' },
+      ]} />
+      <h1>記事検索</h1>
+      <p>{audience.label}の記事から検索します。</p>
+    </div>
+  </header>
+  <section class="section">
+    <div class="container">
+      <div class="search-panel" data-search-panel data-audience={audience.id} data-has-docs={String(hasDocs)} data-pagefind-ignore>
+        {hasDocs ? <SearchForm audienceId={audience.id} compact /> : <p class="empty-state">公開中の記事はまだありません。</p>}
+        {hasDocs && <p class="search-status" role="status" aria-live="polite" data-search-status>
+          キーワードを入力して検索してください。
+        </p>}
+        <ol class="search-results" data-search-results></ol>
+        {hasDocs && <button class="search-more" type="button" data-search-more hidden>さらに表示</button>}
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script is:inline type="module">
+  const panel = document.querySelector('[data-search-panel]');
+  if (panel?.dataset.hasDocs !== 'true') {
+    // An empty help center still builds successfully; there is nothing to search yet.
+  } else {
+    const form = panel.querySelector('form');
+    const input = form?.querySelector('input[name="q"]');
+    const status = panel.querySelector('[data-search-status]');
+    const results = panel.querySelector('[data-search-results]');
+    const more = panel.querySelector('[data-search-more]');
+    const audience = panel.dataset.audience;
+    const pageSize = 30;
+    let matchingResults = [];
+    let renderedCount = 0;
+    let searchGeneration = 0;
+
+    const setStatus = (message) => {
+      if (status) status.textContent = message;
+    };
+
+    const clearResults = () => {
+      results?.replaceChildren();
+      matchingResults = [];
+      renderedCount = 0;
+      if (more) {
+        more.hidden = true;
+        more.disabled = false;
+      }
+    };
+
+    const normalizeTerm = (value) => String(value ?? '').normalize('NFKC').trim();
+
+    const excerptText = (excerpt) => {
+      const holder = document.createElement('div');
+      holder.innerHTML = String(excerpt ?? '');
+      return holder.textContent ?? '';
+    };
+
+    const appendResults = async (generation = searchGeneration) => {
+      if (more) more.disabled = true;
+      try {
+        const batch = matchingResults.slice(renderedCount, renderedCount + pageSize);
+        const items = await Promise.all(batch.map((result) => result.data()));
+        if (generation !== searchGeneration) return;
+        for (const item of items) {
+          const row = document.createElement('li');
+          row.className = 'search-result';
+          const link = document.createElement('a');
+          link.href = item.url;
+          link.textContent = String(item.meta?.title ?? item.url);
+          const summary = document.createElement('p');
+          summary.textContent = String(item.meta?.description ?? excerptText(item.excerpt));
+          row.append(link, summary);
+          results?.append(row);
+        }
+        renderedCount += items.length;
+        if (more) {
+          more.hidden = renderedCount >= matchingResults.length;
+          more.textContent = `さらに表示（残り${matchingResults.length - renderedCount}件）`;
+        }
+      } finally {
+        if (more && generation === searchGeneration) more.disabled = false;
+      }
+    };
+
+    const renderResults = async (rawTerm) => {
+      const generation = ++searchGeneration;
+      const term = normalizeTerm(rawTerm);
+      clearResults();
+      if (!term) {
+        setStatus('キーワードを入力して検索してください。');
+        return;
+      }
+
+      setStatus('検索しています…');
+
+      try {
+        const modulePath = '/pagefind/pagefind.js';
+        const pagefind = await import(modulePath);
+        const response = await pagefind.debouncedSearch(term, {
+          filters: { audience },
+        });
+        if (generation !== searchGeneration || response === null) return;
+
+        matchingResults = response.results;
+        if (matchingResults.length === 0) {
+          setStatus('一致する記事が見つかりませんでした。別のキーワードで検索してください。');
+          return;
+        }
+        setStatus(`${matchingResults.length}件の記事が見つかりました。`);
+        await appendResults(generation);
+      } catch (error) {
+        if (generation !== searchGeneration) return;
+        console.error(error);
+        setStatus('検索を利用できませんでした。通信状況を確認して、ページを再読み込みしてください。');
+      }
+    };
+
+    const initialTerm = normalizeTerm(new URLSearchParams(window.location.search).get('q'));
+    if (input) input.value = initialTerm;
+    renderResults(initialTerm);
+
+    more?.addEventListener('click', () => appendResults(searchGeneration));
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const term = normalizeTerm(input?.value);
+      if (input) input.value = term;
+      const nextUrl = new URL(window.location.href);
+      if (term) nextUrl.searchParams.set('q', term);
+      else nextUrl.searchParams.delete('q');
+      window.history.replaceState({}, '', nextUrl);
+      renderResults(term);
+    });
+  }
+</script>

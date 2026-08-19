@@ -1,0 +1,22 @@
+---
+import { getCategory } from '../config/site';
+import { formatDate, getDocPath, type HelpDoc } from '../lib/content';
+
+interface Props {
+  doc: HelpDoc;
+}
+
+const { doc } = Astro.props;
+const category = getCategory(doc.data.audience, doc.data.category);
+---
+
+<a class="article-card" href={getDocPath(doc)}>
+  <span class="card-kicker">
+    {doc.data.kind === 'notice' && doc.data.publishedAt
+      ? formatDate(doc.data.publishedAt)
+      : category?.label}
+  </span>
+  <h3>{doc.data.title}</h3>
+  <p>{doc.data.summary}</p>
+  <span class="arrow" aria-hidden="true">詳しく見る →</span>
+</a>
